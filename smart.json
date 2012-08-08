@@ -1,0 +1,8 @@
+{
+  "name": "deps-extensions",
+  "description": "Extensions to Meteor's built in reactivity system, deps",
+  "homepage": "https://github.com/tmeasday/meteor-deps-extensions",
+  "author": "Tom Coleman <tom@thesnail.org>",
+  "version": "0.1.0",
+  "git": "https://github.com/tmeasday/meteor-deps-extensions.git"
+}
