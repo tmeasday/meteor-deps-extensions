@@ -67,6 +67,52 @@ Tinytest.add("add reactive variable reactivity", function(test) {
   });  
 });
 
+
+Tinytest.add("repeat", function(test) {
+  var obj = {};
+  Meteor.deps.add_reactive_variable(obj, 'foo', 'default');
+  
+  var repeat_called = 0;
+  Meteor.deps.repeat(function() {
+    obj.foo();
+    repeat_called += 1;
+  });
+  
+  test.equal(repeat_called, 1);
+  
+  obj.foo.set(3);
+  Meteor.flush();
+  test.equal(repeat_called, 2);
+  
+  obj.foo.set(5);
+  Meteor.flush();
+  test.equal(repeat_called, 3);
+});
+
+Tinytest.add("isolate", function(test) {
+  var obj = {};
+  Meteor.deps.add_reactive_variable(obj, 'foo', 'default');
+  
+  var repeat_called = 0;
+  Meteor.deps.repeat(function() {
+    var ret = Meteor.deps.isolate(function() {
+      return obj.foo();
+    });
+    test.equal(ret, 'default');
+    repeat_called += 1;
+  });
+  
+  test.equal(repeat_called, 1);
+  
+  obj.foo.set(3);
+  Meteor.flush();
+  test.equal(repeat_called, 1);
+  
+  obj.foo.set(5);
+  Meteor.flush();
+  test.equal(repeat_called, 1);
+});
+
 Tinytest.add("await", function(test) {
   var obj = {};
   Meteor.deps.add_reactive_variable(obj, 'foo', 'default');
@@ -74,28 +120,71 @@ Tinytest.add("await", function(test) {
   var await_called = 0;
   Meteor.deps.await(function() { return obj.foo.equals(5); }, function() {
     await_called += 1;
-  })
-  
-  var await_once_called = 0;
-  Meteor.deps.await_once(function() { return obj.foo.equals(5); }, function() {
-    await_once_called += 1;
-  })
+  });
   
   test.equal(await_called, 0);
-  test.equal(await_once_called, 0);
+  
+  obj.foo.set(3);
+  Meteor.flush();
+  test.equal(await_called, 0);
   
   obj.foo.set(5);
   Meteor.flush();
   test.equal(await_called, 1);
-  test.equal(await_once_called, 1);
   
   obj.foo.set(6);
   Meteor.flush();
   test.equal(await_called, 1);
-  test.equal(await_once_called, 1);
   
   obj.foo.set(5);
   Meteor.flush();
-  test.equal(await_called, 2);
-  test.equal(await_once_called, 1);
+  test.equal(await_called, 1);
+});
+
+Tinytest.add("memoize", function(test) {
+  var obj = {};
+  Meteor.deps.add_reactive_variable(obj, 'foo', 'default');
+  
+  var inner_called = 0;
+  var fn = Meteor.deps.memoize(function() {
+    inner_called += 1;
+    return obj.foo();
+  });
+  Meteor.flush();
+  test.equal(inner_called, 1);
+  
+  var first_called = 0;
+  Meteor.deps.repeat(function() {
+    var ret = fn();
+    test.equal(ret, obj.foo(true));
+    first_called += 1;
+  });
+  
+  Meteor.flush();
+  test.equal(inner_called, 1);
+  test.equal(first_called, 1);
+  
+  var second_called = 0;
+  Meteor.deps.repeat(function() {
+    var ret = fn();
+    test.equal(ret, obj.foo(true));
+    second_called += 1;
+  });
+  
+  Meteor.flush();
+  test.equal(inner_called, 1);
+  test.equal(first_called, 1);
+  test.equal(second_called, 1);
+  
+  obj.foo.set(3);
+  Meteor.flush();
+  test.equal(inner_called, 2);
+  test.equal(first_called, 2);
+  test.equal(second_called, 2);
+  
+  obj.foo.set(4);
+  Meteor.flush();
+  test.equal(inner_called, 3);
+  test.equal(first_called, 3);
+  test.equal(second_called, 3);
 });

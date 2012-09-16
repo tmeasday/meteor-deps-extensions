@@ -91,16 +91,42 @@ _.extend(Meteor.deps.add_reactive_variable, {
   }
 });
 
+// just setup a basic reactive context.
+//
+// Example (continuing from above): 
+//   Meteor.deps.repeat(function() { 
+//     console.log(Router.current_page()); 
+//   });
+Meteor.deps.repeat = function(fn) {
+  var context = new Meteor.deps.Context();
+  context.on_invalidate(function() {
+    Meteor.deps.repeat(fn);
+  });
+
+  context.run(fn);
+};
+
+// kill reactivity in inner code
+//
+// Example: (will just return the first current_page it sees): 
+//   Meteor.deps.isolate(function() { 
+//     return Router.current_page(); 
+//   });
+Meteor.deps.isolate = function(fn) {
+  var context = new Meteor.deps.Context();
+  return context.run(fn);
+};
+
 // listen to a reactive fn and when it returns true call callback.
 //
 // Example (continuing from above): 
-//   Meteor.deps.await(function() { Router.current_page_equals('home'); }, function() { console.log('at home'); });
-Meteor.deps.await = function(test_fn, callback, once) {
+//   Meteor.deps.await(function() { Router.current_page_equals('home'); }, function() { console.log('first time at home'); });
+Meteor.deps.await = function(test_fn, callback) {
   var done = false;
   var context = new Meteor.deps.Context();
   context.on_invalidate(function() {
-    if (!(done && once))
-      Meteor.deps.await(test_fn, callback, once);
+    if (!done)
+      Meteor.deps.await(test_fn, callback);
   });
 
   context.run(function() {
@@ -111,8 +137,28 @@ Meteor.deps.await = function(test_fn, callback, once) {
   });
 };
 
-// convience function for await(fn, cb, true)
-Meteor.deps.await_once = function(fn, cb) { Meteor.deps.await(fn, cb, true) }
-
 }(Meteor));
 
+Meteor.deps.memoize = function(fn) {
+  var result;
+  var contexts = {}
+  
+  Meteor.deps.repeat(function() {
+    result = fn();
+    
+    for (var id in contexts)
+      contexts[id].invalidate();
+  })
+  
+  return function() {
+    var context = Meteor.deps.Context.current;
+    if (context && !(context.id in contexts)) {
+      contexts[context.id] = context;
+      context.on_invalidate(function () {
+        delete contexts[contexts.id];
+      });
+    }
+    
+    return result;
+  };
+};
