@@ -1,36 +1,67 @@
-**Some reactive helpers for meteor**
+#Some reactive helpers for meteor
 
-**Install**
+##Install
 
-Use [meteorite](http://possibilities.github.com/meteorite/):
-
-```json
-{
-  "packages": {
-    "deps-extensions": {
-      "git": "https://github.com/tmeasday/meteor-deps-extensions.git"
-    }
-  }
-}
-```
-
+Use [meteorite](http://oortcloud.github.com/meteorite/):
 Then add via:
 
 ```bash
 mrt add deps-extensions
 ```
 
-**Usage**
- 
+##Usage
+
+###Adding Reactive Variables
 ```js
- Meteor.deps.add_reactive_variable(object, name, default_value)
+ Meteor.deps.add_reactive_variable(object, 'something', default_value)
 ```
 
-Which adds three functions to object: object.name(), object.name.set() and object.name.equals() which behave reactively.
+Which adds three functions to object: object.something(), object.something.set() and object.something.equals() which behave reactively.
 
+###Using reactive contexts
 
+####`repeat`
 ```js
- Meteor.deps.await(test_fn, cb)
+Meteor.deps.repeat(fn)
+```
+Repeatedly call `fn`, once each time the dependencies that it uses changes. For example:
+```js
+Meteor.deps.repeat(function() {
+  console.log("current_post_id is: " Session.get('current_post_id'));
+});
 ```
 
-Which will set up a context to repeatedly test test_fn and then call cb when it succeeds. There's more details and an example in the file.
+####`isolate`
+```js
+Meteor.deps.isolate(fn)
+```
+Kill all reactivity inside `fn`, so that the current context isn't ever invalidated by that code. Returns the result of `fn`. For example:
+```js
+Meteor.deps.isolate(function() {
+  return Comments.find({}, {order: {score: 1}});
+});
+```
+Will return a list of comments that is 'unreactive' and thus won't reorder as the user reads them.
+
+####`await`
+```js
+ Meteor.deps.await(predicate, cb)
+```
+Repeatedly (reactively) call `predicate` until it's true, then call `cb` *once only*. For example
+```js
+Meteor.deps.await(function() { return Router.current_page() === 'home'; }, function() {
+  alert('Welcome to my site! Nice to see you!');
+});
+```
+
+####`memoize`
+```js
+ Meteor.deps.memoize(fn)
+```
+Returns a function that wraps `fn` in a context, so that `fn`'s reactivity can be maintained, whilst minimizing the number of calls to it. Example:
+```js
+var cheapReactiveFn = Meteor.deps.memoize(function() {
+  return expensiveReactiveFn();
+});
+```
+Now `reactiveFn` can be called many times, but `expensiveReactiveFn` will only get called once (per value it returns);
