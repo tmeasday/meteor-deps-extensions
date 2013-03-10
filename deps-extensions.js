@@ -145,7 +145,7 @@ Meteor.deps.memoize = function(fn) {
   
   Meteor.deps.repeat(function() {
     result = fn();
-    
+
     for (var id in contexts)
       contexts[id].invalidate();
   })
@@ -158,7 +158,7 @@ Meteor.deps.memoize = function(fn) {
         delete contexts[contexts.id];
       });
     }
-    
+
     return result;
   };
 };
