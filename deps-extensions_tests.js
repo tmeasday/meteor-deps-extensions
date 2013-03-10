@@ -29,7 +29,7 @@ var testCodeInvalidates = function(test, obj, should_be, callback) {
   obj.foo.set('second');
   Meteor.flush();
   test.equal(invalidated, should_be);
-}
+};
 
 Tinytest.add("add reactive variable reactivity", function(test) {
   var obj = {};
