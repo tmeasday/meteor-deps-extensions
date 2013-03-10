@@ -1,48 +1,48 @@
 (function(Meteor) {
 // Add 3 functions to an object to create a reactive variable on it.
 //
-// For example Router.add_reactive_variable('current_page', initial_value) will create three methods:
+// For example Router.addReactiveVariable('currentPage', initial_value) will create three methods:
 //
-//   - Router.current_page(not_reactive = false): 
-//      reads the value of current_page, reactively?
-// 
-//   - Router.current_page.equals(value): 
-//      is current_page === value ala the session
+//   - Router.currentPage(notReactive = false):
+//      reads the value of currentPage, reactively?
 //
-//   - Router.current_page.set(value): 
-//      changes the value of current_page, reactively
+//   - Router.currentPage.equals(value):
+//      is currentPage === value ala the session
+//
+//   - Router.currentPage.set(value):
+//      changes the value of currentPage, reactively
 //       (i.e. invalidates all contexts that have read this variable)
 
-Meteor.deps.add_reactive_variable = function(object, name, value) {
+Meteor.deps.addReactiveVariable = function(object, name, value) {
   // the variable is hidden via closures
   var variable = value;
-  var contexts = {}, equals_contexts = {};
+  var contexts = {}, equalsContexts = {};
 
 
-  object[name] = function(not_reactive) {
-    return Meteor.deps.add_reactive_variable.read_variable(not_reactive, variable, contexts);
+  object[name] = function(notReactive) {
+    return Meteor.deps.addReactiveVariable.readVariable(notReactive, variable, contexts);
   };
 
   object[name].equals = function(value) {
-    return Meteor.deps.add_reactive_variable.variable_equals(value, variable, equals_contexts);
-  }
-   
-  object[name].set = function(new_value) {
-    variable = Meteor.deps.add_reactive_variable.set_variable(new_value, variable, contexts, equals_contexts);
-  }
+    return Meteor.deps.addReactiveVariable.variableEquals(value, variable, equalsContexts);
+  };
+
+  object[name].set = function(newValue) {
+    variable = Meteor.deps.addReactiveVariable.setVariable(newValue, variable, contexts, equalsContexts);
+  };
 };
 
-_.extend(Meteor.deps.add_reactive_variable, {
-  read_variable: function (not_reactive, variable, contexts) {
+_.extend(Meteor.deps.addReactiveVariable, {
+  readVariable: function (notReactive, variable, contexts) {
     // templates will pass in an object here, so we want to be sure they've passed true
-    if (not_reactive === true) 
+    if (notReactive === true)
       return variable;
 
     var context = Meteor.deps.Context.current;
 
     if (context && !(context.id in contexts)) {
       contexts[context.id] = context;
-      context.on_invalidate(function () {
+      context.onInvalidate(function () {
         delete contexts[contexts.id];
       });
     }
@@ -50,32 +50,32 @@ _.extend(Meteor.deps.add_reactive_variable, {
     return variable;
   },
 
-  variable_equals: function(value, variable, equals_contexts) {
+  variableEquals: function(value, variable, equalsContexts) {
     var context = Meteor.deps.Context.current;
     if (context) {
-      if (!(value in equals_contexts))
-        equals_contexts[value] = {};
+      if (!(value in equalsContexts))
+        equalsContexts[value] = {};
 
-      if (!(context.id in equals_contexts[value])) {
-        equals_contexts[value][context.id] = context;
-        context.on_invalidate(function () {
-          delete equals_contexts[value][context.id];
+      if (!(context.id in equalsContexts[value])) {
+        equalsContexts[value][context.id] = context;
+        context.onInvalidate(function () {
+          delete equalsContexts[value][context.id];
 
           // clean up [key][value] if it's now empty, so we don't use
           // O(n) memory for n = values seen ever
-          for (var x in equals_contexts[value])
+          for (var x in equalsContexts[value])
             return;
-          delete equals_contexts[value];
+          delete equalsContexts[value];
         });
       }
     }
     return variable === value;
   },
 
-  set_variable: function(new_value, variable, contexts, equals_contexts) {
-    var old_value = variable;
-    if (new_value === old_value)
-      return old_value;
+  setVariable: function(newValue, variable, contexts, equalsContexts) {
+    var oldValue = variable;
+    if (newValue === oldValue)
+      return oldValue;
 
     var invalidate = function (map) {
       if (map)
@@ -84,22 +84,22 @@ _.extend(Meteor.deps.add_reactive_variable, {
     };
 
     invalidate(contexts);
-    invalidate(equals_contexts[old_value]);
-    invalidate(equals_contexts[new_value]);
+    invalidate(equalsContexts[oldValue]);
+    invalidate(equalsContexts[newValue]);
 
-    return new_value;
+    return newValue;
   }
 });
 
 // just setup a basic reactive context.
 //
-// Example (continuing from above): 
-//   Meteor.deps.repeat(function() { 
-//     console.log(Router.current_page()); 
+// Example (continuing from above):
+//   Meteor.deps.repeat(function() {
+//     console.log(Router.currentPage());
 //   });
 Meteor.deps.repeat = function(fn) {
   var context = new Meteor.deps.Context();
-  context.on_invalidate(function() {
+  context.onInvalidate(function() {
     Meteor.deps.repeat(fn);
   });
 
@@ -108,9 +108,9 @@ Meteor.deps.repeat = function(fn) {
 
 // kill reactivity in inner code
 //
-// Example: (will just return the first current_page it sees): 
-//   Meteor.deps.isolate(function() { 
-//     return Router.current_page(); 
+// Example: (will just return the first currentPage it sees):
+//   Meteor.deps.isolate(function() {
+//     return Router.currentPage();
 //   });
 Meteor.deps.isolate = function(fn) {
   var context = new Meteor.deps.Context();
@@ -119,18 +119,18 @@ Meteor.deps.isolate = function(fn) {
 
 // listen to a reactive fn and when it returns true call callback.
 //
-// Example (continuing from above): 
-//   Meteor.deps.await(function() { Router.current_page_equals('home'); }, function() { console.log('first time at home'); });
-Meteor.deps.await = function(test_fn, callback) {
+// Example (continuing from above):
+//   Meteor.deps.await(function() { Router.currentPage_equals('home'); }, function() { console.log('first time at home'); });
+Meteor.deps.await = function(testFn, callback) {
   var done = false;
   var context = new Meteor.deps.Context();
-  context.on_invalidate(function() {
+  context.onInvalidate(function() {
     if (!done)
-      Meteor.deps.await(test_fn, callback);
+      Meteor.deps.await(testFn, callback);
   });
 
   context.run(function() {
-    if (test_fn()) {
+    if (testFn()) {
       done = true;
       callback();
     }
@@ -141,20 +141,20 @@ Meteor.deps.await = function(test_fn, callback) {
 
 Meteor.deps.memoize = function(fn) {
   var result;
-  var contexts = {}
-  
+  var contexts = {};
+
   Meteor.deps.repeat(function() {
     result = fn();
 
     for (var id in contexts)
       contexts[id].invalidate();
-  })
-  
+  });
+
   return function() {
     var context = Meteor.deps.Context.current;
     if (context && !(context.id in contexts)) {
       contexts[context.id] = context;
-      context.on_invalidate(function () {
+      context.onInvalidate(function () {
         delete contexts[contexts.id];
       });
     }

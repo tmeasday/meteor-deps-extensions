@@ -13,7 +13,7 @@ mrt add deps-extensions
 
 ###Adding Reactive Variables
 ```js
- Meteor.deps.add_reactive_variable(object, 'something', default_value)
+ Meteor.deps.addReactiveVariable(object, 'something', default_value)
 ```
 
 Which adds three functions to object: object.something(), object.something.set() and object.something.equals() which behave reactively.
@@ -49,7 +49,7 @@ Will return a list of comments that is 'unreactive' and thus won't reorder as th
 ```
 Repeatedly (reactively) call `predicate` until it's true, then call `cb` *once only*. For example
 ```js
-Meteor.deps.await(function() { return Router.current_page() === 'home'; }, function() {
+Meteor.deps.await(function() { return Router.currentPage() === 'home'; }, function() {
   alert('Welcome to my site! Nice to see you!');
 });
 ```
